@@ -49,6 +49,7 @@ class ListingMonitorCreateRequest(BaseModel):
     dm_batch_size: int = Field(5, ge=1, le=100, description="每次定时私信任务最多处理条数")
     order_batch_size: int = Field(5, ge=1, le=100, description="每次定时下单任务最多处理条数")
     direct_order: bool = Field(False, description="采集后是否直接下单（开启则新采集商品立即用下单账号下单后再入库）")
+    notify_on_collect: bool = Field(False, description="采集到新增商品后是否推送通知渠道")
     is_enabled: bool = Field(True, description="是否启用")
     remark: Optional[str] = Field(None, max_length=500, description="备注")
 
@@ -71,6 +72,7 @@ class ListingMonitorUpdateRequest(BaseModel):
     dm_batch_size: Optional[int] = Field(None, ge=1, le=100, description="每次定时私信任务最多处理条数")
     order_batch_size: Optional[int] = Field(None, ge=1, le=100, description="每次定时下单任务最多处理条数")
     direct_order: Optional[bool] = Field(None, description="采集后是否直接下单")
+    notify_on_collect: Optional[bool] = Field(None, description="采集到新增商品后是否推送通知渠道")
     is_enabled: Optional[bool] = Field(None)
     remark: Optional[str] = Field(None, max_length=500)
 

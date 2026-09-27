@@ -26,6 +26,7 @@ from common.models.listing_monitor_task import ListingMonitorTask
 from common.models.xy_account import XYAccount
 from common.services.account_cooldown import DEFAULT_COOLDOWN_SECONDS, account_cooldown_manager
 from common.services.listing_monitor_dedup import has_owner_ordered_item
+from common.services.listing_monitor_notify import notify_listing_monitor_collect
 from common.services.collect_account_loader import merge_task_and_fallback_account_ids
 from common.services.monitor_remote_risk_client import solve_remote_risk
 from common.services.monitor_remote_risk_config import (
@@ -516,7 +517,7 @@ class ListingMonitorTaskService:
                 status = "partial" if pages_collected > 0 else "failed"
 
         fetched_count = len(all_items)
-        inserted_count, updated_count = await self._upsert_items(task, all_items)
+        inserted_count, updated_count, inserted_items = await self._upsert_items(task, all_items)
 
         if status == "success" and not message:
             message = f"采集{pages_collected}页，获取{fetched_count}，新增{inserted_count}，更新{updated_count}"
@@ -541,15 +542,30 @@ class ListingMonitorTaskService:
         )
         await self._update_last_run(task.id)
 
+        # 仅「新增」商品推送通知；开关关闭或本次无新增则跳过
+        if bool(getattr(task, "notify_on_collect", False)) and inserted_items:
+            try:
+                await notify_listing_monitor_collect(
+                    owner_id=task.owner_id,
+                    task_id=task.id,
+                    keyword=task.keyword or "",
+                    monitor_type=task.monitor_type or "listing",
+                    account_id=used_account_id,
+                    fetched_count=fetched_count,
+                    inserted_items=inserted_items,
+                )
+            except Exception as notify_exc:  # noqa: BLE001
+                logger.error(f"【{self.task_name}】任务 {task.id} 采集通知发送异常: {notify_exc}")
+
         logger.info(
             f"【{self.task_name}】任务 {task.id}({task.keyword}/{task.monitor_type}) 完成："
             f"账号={used_account_id}，页数={pages_collected}，获取={fetched_count}，新增={inserted_count}，更新={updated_count}，状态={status}"
         )
 
-    async def _upsert_items(self, task: ListingMonitorTask, items: List[dict]) -> tuple[int, int]:
-        """将采集商品 upsert 到采集商品表，返回 (新增数, 更新数)。"""
+    async def _upsert_items(self, task: ListingMonitorTask, items: List[dict]) -> tuple[int, int, List[dict]]:
+        """将采集商品 upsert 到采集商品表，返回 (新增数, 更新数, 新增商品摘要列表)。"""
         if not items:
-            return 0, 0
+            return 0, 0, []
 
         # 按 item_id 去重（同一次采集多页可能重复），保留最后一次出现的数据
         dedup: Dict[str, dict] = {}
@@ -559,6 +575,7 @@ class ListingMonitorTaskService:
         now = get_beijing_now_naive()
         inserted = 0
         updated = 0
+        inserted_items: List[dict] = []
 
         # 采集后直接下单：预加载下单账号（order_account_ids），新商品入库前先下单
         direct_order = bool(task.direct_order)
@@ -667,9 +684,19 @@ class ListingMonitorTaskService:
                                 new_item.order_attempts = 1
                     session.add(new_item)
                     inserted += 1
+                    inserted_items.append(
+                        {
+                            "item_id": item_id,
+                            "title": fields["title"],
+                            "price": fields["price"],
+                            "area": fields["area"],
+                            "target_url": fields["target_url"],
+                            "seller_nick": fields["seller_nick"],
+                        }
+                    )
 
             await session.commit()
-        return inserted, updated
+        return inserted, updated, inserted_items
 
     async def _direct_order_item(
         self,

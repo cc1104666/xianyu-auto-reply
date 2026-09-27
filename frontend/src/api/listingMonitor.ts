@@ -42,6 +42,7 @@ export interface ListingMonitorTask {
   dm_batch_size?: number
   order_batch_size?: number
   direct_order?: boolean
+  notify_on_collect?: boolean
   is_enabled: boolean
   last_run_at?: string | null
   remark?: string | null

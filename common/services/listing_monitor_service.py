@@ -96,6 +96,7 @@ def _task_to_dict(task: ListingMonitorTask) -> Dict[str, Any]:
         "dm_batch_size": task.dm_batch_size,
         "order_batch_size": task.order_batch_size,
         "direct_order": bool(task.direct_order),
+        "notify_on_collect": bool(task.notify_on_collect),
         "is_enabled": bool(task.is_enabled),
         "last_run_at": safe_isoformat(task.last_run_at),
         "remark": task.remark,
@@ -352,6 +353,10 @@ class ListingMonitorService:
         # 采集后直接下单开关
         if "direct_order" in data or not partial:
             payload["direct_order"] = bool(data.get("direct_order"))
+
+        # 采集到新增商品后推送通知渠道开关
+        if "notify_on_collect" in data or not partial:
+            payload["notify_on_collect"] = bool(data.get("notify_on_collect"))
 
         # 创建时校验：配置了下单账号则私信内容必填（开启"采集后直接下单"时跳过私信，无需私信内容）
         if not partial and payload.get("order_account_ids") and not payload.get("dm_content") and not payload.get("direct_order"):

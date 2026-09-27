@@ -50,6 +50,7 @@ interface ListingMonitorFormState {
   dmBatchSize: string
   orderBatchSize: string
   directOrder: boolean
+  notifyOnCollect: boolean
 }
 
 const buildInitialState = (initial?: ListingMonitorTask | null): ListingMonitorFormState => ({
@@ -68,6 +69,7 @@ const buildInitialState = (initial?: ListingMonitorTask | null): ListingMonitorF
   dmBatchSize: initial?.dm_batch_size != null ? String(initial.dm_batch_size) : '5',
   orderBatchSize: initial?.order_batch_size != null ? String(initial.order_batch_size) : '5',
   directOrder: Boolean(initial?.direct_order),
+  notifyOnCollect: Boolean(initial?.notify_on_collect),
 })
 
 export function ListingMonitorFormModal({ initial, onClose, onSaved }: ListingMonitorFormModalProps) {
@@ -258,6 +260,7 @@ export function ListingMonitorFormModal({ initial, onClose, onSaved }: ListingMo
         dm_batch_size: dmBatchSize,
         order_batch_size: orderBatchSize,
         direct_order: form.directOrder,
+        notify_on_collect: form.notifyOnCollect,
       }
       const result = isEditMode && initial
         ? await updateListingMonitorTask(initial.id, payload)
@@ -602,6 +605,19 @@ export function ListingMonitorFormModal({ initial, onClose, onSaved }: ListingMo
                 <span className="input-label mb-0">采集后直接下单</span>
               </label>
               <p className="text-xs text-slate-400 mt-1">开启后，新采集到的商品立即用下单账号下单（跳过私信），下单完成后再入库，避免与定时下单任务并发。需配置下单账号。</p>
+            </div>
+
+            <div className="input-group">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  checked={form.notifyOnCollect}
+                  onChange={(e) => setForm((prev) => ({ ...prev, notifyOnCollect: e.target.checked }))}
+                />
+                <span className="input-label mb-0">采集后推送通知</span>
+              </label>
+              <p className="text-xs text-slate-400 mt-1">开启后，本次采集出现新增商品时，推送到你在「通知渠道」中已启用的渠道；仅更新已有商品不会推送。请先配置通知渠道。</p>
             </div>
           </div>
         </div>
