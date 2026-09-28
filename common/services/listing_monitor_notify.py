@@ -17,6 +17,7 @@ from sqlalchemy import select
 from common.db.session import async_session_maker
 from common.models.notification_channel import NotificationChannel
 from common.utils.notification_utils import send_to_notification_channels
+from common.utils.xianyu_utils import canonical_goofish_item_url
 
 # 单条通知正文最多展示的新增商品条数，超出部分用省略说明
 _MAX_ITEMS_IN_MESSAGE = 10
@@ -27,8 +28,21 @@ _MONITOR_TYPE_LABELS = {
 }
 
 
+def _resolve_item_link(item: Dict[str, Any]) -> str:
+    """解析通知用商品链接：优先可点击的 https 网页链接，避免 fleamarket:// 深链。"""
+    item_id = (item.get("item_id") or "").strip()
+    web_url = canonical_goofish_item_url(item_id)
+    if web_url:
+        return web_url
+
+    target_url = (item.get("target_url") or "").strip()
+    if target_url.lower().startswith(("http://", "https://")):
+        return target_url
+    return ""
+
+
 def _build_items_summary(items: List[Dict[str, Any]]) -> str:
-    """将新增商品列表格式化为通知正文中的摘要。"""
+    """将新增商品列表格式化为通知正文中的摘要（含商品网页链接）。"""
     if not items:
         return "（无）"
 
@@ -38,12 +52,12 @@ def _build_items_summary(items: List[Dict[str, Any]]) -> str:
         price = (item.get("price") or "未知").strip() or "未知"
         item_id = (item.get("item_id") or "未知").strip() or "未知"
         area = (item.get("area") or "").strip()
-        target_url = (item.get("target_url") or "").strip()
+        item_link = _resolve_item_link(item)
         line = f"{index}. {title}｜¥{price}｜ID:{item_id}"
         if area:
             line = f"{line}｜{area}"
-        if target_url:
-            line = f"{line}\n   {target_url}"
+        if item_link:
+            line = f"{line}\n   链接: {item_link}"
         lines.append(line)
 
     omitted = len(items) - _MAX_ITEMS_IN_MESSAGE
