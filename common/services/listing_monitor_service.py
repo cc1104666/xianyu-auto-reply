@@ -24,6 +24,10 @@ from common.models.listing_monitor_category import ListingMonitorCategory
 from common.models.xy_account import XYAccount
 from common.models.user import User
 from common.services.listing_monitor_category_access import ensure_category_accessible
+from common.services.listing_monitor_keyword import (
+    KEYWORD_MATCH_MODES,
+    normalize_keyword_match_mode,
+)
 from common.utils.time_utils import get_beijing_now_naive, safe_isoformat
 
 # 合法分页大小
@@ -84,6 +88,7 @@ def _task_to_dict(task: ListingMonitorTask) -> Dict[str, Any]:
         "category_id": task.category_id,
         "monitor_type": task.monitor_type,
         "keyword": task.keyword,
+        "keyword_match_mode": getattr(task, "keyword_match_mode", None) or "off",
         "price_min": float(task.price_min) if task.price_min is not None else None,
         "price_max": float(task.price_max) if task.price_max is not None else None,
         "publish_days": task.publish_days,
@@ -236,6 +241,18 @@ class ListingMonitorService:
             if len(keyword) > 200:
                 raise ValueError("商品关键字长度不能超过200个字符")
             payload["keyword"] = keyword
+
+        # 多关键词匹配模式：off / any / all（匹配范围=标题或内容）
+        if "keyword_match_mode" in data or not partial:
+            raw_mode = data.get("keyword_match_mode")
+            if raw_mode is None or raw_mode == "":
+                mode = "off"
+            else:
+                raw = str(raw_mode).strip().lower()
+                if raw not in KEYWORD_MATCH_MODES:
+                    raise ValueError("关键词匹配模式仅支持：off（不过滤）、any（标题或内容含任一）、all（标题或内容含全部）")
+                mode = normalize_keyword_match_mode(raw)
+            payload["keyword_match_mode"] = mode
 
         # 价格区间
         price_min = _to_decimal(data["price_min"]) if "price_min" in data else None

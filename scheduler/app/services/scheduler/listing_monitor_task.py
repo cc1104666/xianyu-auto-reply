@@ -26,6 +26,12 @@ from common.models.listing_monitor_task import ListingMonitorTask
 from common.models.xy_account import XYAccount
 from common.services.account_cooldown import DEFAULT_COOLDOWN_SECONDS, account_cooldown_manager
 from common.services.listing_monitor_dedup import has_owner_ordered_item
+from common.services.listing_monitor_keyword import (
+    KEYWORD_MATCH_OFF,
+    item_matches_keywords,
+    normalize_keyword_match_mode,
+    resolve_search_keyword,
+)
 from common.services.listing_monitor_notify import notify_listing_monitor_collect
 from common.services.collect_account_loader import merge_task_and_fallback_account_ids
 from common.services.monitor_remote_risk_client import solve_remote_risk
@@ -406,6 +412,8 @@ class ListingMonitorTaskService:
         remote_risk_failed = 0
         # 是否有账号因达到远程调用上限而未调用远程（用于日志说明）
         remote_risk_limited = False
+        match_mode = normalize_keyword_match_mode(getattr(task, "keyword_match_mode", None))
+        keyword_filtered_count = 0
 
         if not accounts:
             status = "failed"
@@ -419,9 +427,11 @@ class ListingMonitorTaskService:
             price_max = float(task.price_max) if task.price_max is not None else None
             # 任务配置了代理API地址时，取一个HTTP代理供本次采集使用（失败则直连）
             task_proxy = await fetch_proxy_from_api(task.proxy_url, account_id=str(task.id)) if task.proxy_url else None
+            # 多关键词匹配：开启时用首词搜索，入库前再按 any/all 过滤标题
+            search_keyword = resolve_search_keyword(task.keyword, match_mode)
             # 除页码外的搜索参数固定，先组装好供正常调用与过风控后的重试复用
             search_kwargs = {
-                "keyword": task.keyword,
+                "keyword": search_keyword,
                 "sort_field": sort_field,
                 "sort_value": sort_value,
                 "rows_per_page": _ROWS_PER_PAGE,
@@ -505,8 +515,17 @@ class ListingMonitorTaskService:
                 pages_collected += 1
                 for entry in page_result.get("items", []):
                     parsed = parse_search_item(entry)
-                    if parsed:
-                        all_items.append(parsed)
+                    if not parsed:
+                        continue
+                    if not item_matches_keywords(
+                        parsed.get("title"),
+                        parsed.get("content"),
+                        task.keyword,
+                        match_mode,
+                    ):
+                        keyword_filtered_count += 1
+                        continue
+                    all_items.append(parsed)
 
                 # 没有下一页则提前结束
                 if not page_result.get("has_next_page"):
@@ -521,6 +540,8 @@ class ListingMonitorTaskService:
 
         if status == "success" and not message:
             message = f"采集{pages_collected}页，获取{fetched_count}，新增{inserted_count}，更新{updated_count}"
+            if match_mode != KEYWORD_MATCH_OFF and keyword_filtered_count:
+                message = f"{message}，关键词未匹配过滤{keyword_filtered_count}"
 
         # 本次用过远程过风控则在日志说明中体现，便于在监控日志页直接看到效果
         if remote_risk_passed or remote_risk_failed or remote_risk_limited:

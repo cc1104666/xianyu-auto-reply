@@ -31,6 +31,13 @@ class ListingMonitorTask(TimestampMixin, Base):
     category_id: Mapped[int | None] = mapped_column(BigInteger, comment="所属分类ID（NULL=未分类）")
     monitor_type: Mapped[str] = mapped_column(String(20), nullable=False, default="listing", server_default="listing", comment="监控类型：listing-上新监控，price_drop-降价监控")
     keyword: Mapped[str] = mapped_column(String(200), nullable=False, comment="商品监控关键字")
+    keyword_match_mode: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default="off",
+        server_default="off",
+        comment="多关键词匹配：off-不本地过滤，any-标题或内容含任一词，all-标题或内容含全部词",
+    )
     price_min: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), comment="商品价格区间最低值")
     price_max: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), comment="商品价格区间最高值")
     publish_days: Mapped[int | None] = mapped_column(Integer, comment="上新天数筛选（searchFilter 的 publishDays，单位天，NULL/0=不限）")

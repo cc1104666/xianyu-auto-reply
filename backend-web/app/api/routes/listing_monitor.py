@@ -36,7 +36,11 @@ class ListingMonitorCreateRequest(BaseModel):
 
     monitor_type: str = Field(..., description="监控类型：listing-上新监控，price_drop-降价监控")
     category_id: int = Field(..., description="所属分类ID（必填）")
-    keyword: str = Field(..., min_length=1, max_length=200, description="商品监控关键字")
+    keyword: str = Field(..., min_length=1, max_length=200, description="商品监控关键字（多词可用空格/逗号分隔）")
+    keyword_match_mode: str = Field(
+        "off",
+        description="多关键词匹配：off-不本地过滤，any-标题或内容含任一词，all-标题或内容含全部词",
+    )
     price_min: Optional[float] = Field(None, ge=0, description="商品价格区间最低值")
     price_max: Optional[float] = Field(None, ge=0, description="商品价格区间最高值")
     publish_days: Optional[int] = Field(None, ge=1, le=365, description="上新天数筛选（publishDays，单位天，留空=不限）")
@@ -60,6 +64,10 @@ class ListingMonitorUpdateRequest(BaseModel):
     monitor_type: Optional[str] = Field(None, description="监控类型：listing-上新监控，price_drop-降价监控")
     category_id: Optional[int] = Field(None, description="所属分类ID")
     keyword: Optional[str] = Field(None, min_length=1, max_length=200)
+    keyword_match_mode: Optional[str] = Field(
+        None,
+        description="多关键词匹配：off-不本地过滤，any-标题或内容含任一词，all-标题或内容含全部词",
+    )
     price_min: Optional[float] = Field(None, ge=0)
     price_max: Optional[float] = Field(None, ge=0)
     publish_days: Optional[int] = Field(None, ge=1, le=365, description="上新天数筛选（publishDays，单位天，留空=不限）")

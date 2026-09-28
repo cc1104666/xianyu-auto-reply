@@ -11,7 +11,9 @@ import { Check, ChevronDown, Loader2, X } from 'lucide-react'
 import {
   createListingMonitorTask,
   updateListingMonitorTask,
+  KEYWORD_MATCH_MODE_OPTIONS,
   MONITOR_TYPE_OPTIONS,
+  type KeywordMatchMode,
   type ListingMonitorTask,
   type MonitorType,
 } from '@/api/listingMonitor'
@@ -38,6 +40,7 @@ interface ListingMonitorFormState {
   monitorType: MonitorType
   categoryId: string
   keyword: string
+  keywordMatchMode: KeywordMatchMode
   priceMin: string
   priceMax: string
   publishDays: string
@@ -57,6 +60,7 @@ const buildInitialState = (initial?: ListingMonitorTask | null): ListingMonitorF
   monitorType: initial?.monitor_type ?? 'listing',
   categoryId: initial?.category_id != null ? String(initial.category_id) : '',
   keyword: initial?.keyword ?? '',
+  keywordMatchMode: initial?.keyword_match_mode ?? 'off',
   priceMin: initial?.price_min != null ? String(initial.price_min) : '',
   priceMax: initial?.price_max != null ? String(initial.price_max) : '',
   publishDays: initial?.publish_days != null ? String(initial.publish_days) : '',
@@ -246,6 +250,7 @@ export function ListingMonitorFormModal({ initial, onClose, onSaved }: ListingMo
         monitor_type: form.monitorType,
         category_id: Number(form.categoryId),
         keyword,
+        keyword_match_mode: form.keywordMatchMode,
         price_min: priceMin,
         price_max: priceMax,
         publish_days: form.monitorType === 'listing'
@@ -322,9 +327,26 @@ export function ListingMonitorFormModal({ initial, onClose, onSaved }: ListingMo
               <label className="input-label">商品关键字 <span className="text-red-500">*</span></label>
               <input
                 className="input-ios"
-                placeholder="如：iPhone 15 黄金"
+                placeholder="多词可用空格或逗号分隔，如：鱼力值互评,互动服务"
                 value={form.keyword}
                 onChange={(e) => setForm((prev) => ({ ...prev, keyword: e.target.value }))}
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">
+                关键词匹配模式
+                <span className="text-xs text-slate-400 ml-1">
+                  （开启后按标题或内容本地过滤，词出现在任一处即可；搜索用第一个词）
+                </span>
+              </label>
+              <Select
+                value={form.keywordMatchMode}
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, keywordMatchMode: value as KeywordMatchMode }))
+                }
+                options={KEYWORD_MATCH_MODE_OPTIONS}
+                placeholder="请选择匹配模式"
               />
             </div>
 

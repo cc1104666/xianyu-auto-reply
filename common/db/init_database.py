@@ -1645,6 +1645,7 @@ class DatabaseInitializer:
                 category_id BIGINT DEFAULT NULL COMMENT '所属分类ID（NULL=未分类）',
                 monitor_type VARCHAR(20) NOT NULL DEFAULT 'listing' COMMENT '监控类型：listing-上新监控，price_drop-降价监控',
                 keyword VARCHAR(200) NOT NULL COMMENT '商品监控关键字',
+                keyword_match_mode VARCHAR(10) NOT NULL DEFAULT 'off' COMMENT '多关键词匹配：off-不本地过滤，any-标题或内容含任一词，all-标题或内容含全部词',
                 price_min DECIMAL(12,2) DEFAULT NULL COMMENT '商品价格区间最低值',
                 price_max DECIMAL(12,2) DEFAULT NULL COMMENT '商品价格区间最高值',
                 publish_days INT DEFAULT NULL COMMENT '上新天数筛选（searchFilter 的 publishDays，单位天，NULL/0=不限）',
@@ -2006,6 +2007,7 @@ class DatabaseInitializer:
             ("proxy_url", "VARCHAR(255) DEFAULT NULL COMMENT '代理API地址（GET返回IP:PORT列表，取一个作HTTP代理；空=不使用代理）'", "collect_pages"),
             ("direct_order", "TINYINT(1) NOT NULL DEFAULT 0 COMMENT '采集后是否直接下单（开启则新采集商品立即用下单账号下单后再入库）'", "order_batch_size"),
             ("notify_on_collect", "TINYINT(1) NOT NULL DEFAULT 0 COMMENT '采集到新增商品后是否推送通知渠道'", "direct_order"),
+            ("keyword_match_mode", "VARCHAR(10) NOT NULL DEFAULT 'off' COMMENT '多关键词匹配：off-不本地过滤，any-标题或内容含任一词，all-标题或内容含全部词'", "keyword"),
         ],
         "xy_listing_monitor_logs": [
             ("used_account_ids", "JSON DEFAULT NULL COMMENT '本次执行实际使用过的账号ID列表（可能多个）'", "account_id"),
